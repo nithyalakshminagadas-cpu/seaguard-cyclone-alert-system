@@ -1,0 +1,624 @@
+
+const DEFAULT_LOCATION = {
+    name: "Rameswaram, Tamil Nadu",
+    lat: 9.288,
+    lon: 79.313
+};
+
+let currentLocation = { ...DEFAULT_LOCATION };
+let map;
+let marker;
+let reportLayer;
+
+const $ = id => document.getElementById(id);
+
+function format(value, digits = 1) {
+    return Number.isFinite(Number(value))
+        ? Number(value).toFixed(digits)
+        : "--";
+}
+
+function setMetric(id, value, unit = "") {
+    $(id).innerHTML = `${value}<small>${unit}</small>`;
+}
+
+// LOCATION
+
+function setLocation(lat, lon, name) {
+
+    currentLocation = { lat, lon, name };
+
+    $("locationName").textContent = name;
+
+    $("coords").textContent =
+        `${lat.toFixed(3)}° N · ${lon.toFixed(3)}° E`;
+
+    if (map) {
+        map.setView([lat, lon], 9);
+
+        marker.setLatLng([lat, lon])
+            .bindPopup(`<b>${name}</b><br>Monitoring point`);
+    }
+}
+
+// MAP
+
+function initMap() {
+
+    if (!window.L) {
+        $("map").innerHTML =
+            "Map library could not load. Check your internet connection.";
+        return;
+    }
+
+    map = L.map("map").setView(
+        [currentLocation.lat, currentLocation.lon],
+        9
+    );
+
+    L.tileLayer(
+        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        {
+            maxZoom: 18,
+            attribution: "&copy; OpenStreetMap"
+        }
+    ).addTo(map);
+
+    marker = L.marker([
+        currentLocation.lat,
+        currentLocation.lon
+    ]).addTo(map);
+
+    marker.bindPopup(
+        "<b>Rameswaram</b><br>Monitoring location"
+    ).openPopup();
+
+    reportLayer = L.layerGroup().addTo(map);
+
+    $("mapHomeBtn").addEventListener("click", () => {
+        map.setView([
+            currentLocation.lat,
+            currentLocation.lon
+        ], 9);
+    });
+}
+
+// RISK ANALYSIS
+
+function calculateRisk(wind, gust, rain, wave) {
+
+    const factors = [
+
+        {
+            name: "Wind Speed",
+            value: Math.min(100, wind / 65 * 100),
+            detail: `${format(wind)} km/h`
+        },
+
+        {
+            name: "Wind Gusts",
+            value: Math.min(100, gust / 85 * 100),
+            detail: `${format(gust)} km/h`
+        },
+
+        {
+            name: "Rainfall",
+            value: Math.min(100, rain / 20 * 100),
+            detail: `${format(rain)} mm/h`
+        },
+
+        {
+            name: "Wave Height",
+            value: Math.min(100, wave / 4 * 100),
+            detail: `${format(wave)} m`
+        }
+
+    ];
+
+    const score = Math.round(
+        factors.reduce((total, item) => total + item.value, 0)
+        / factors.length
+    );
+
+    let level;
+    let title;
+    let description;
+    let color;
+
+    if (score < 25) {
+
+        level = "LOW INDICATOR";
+        title = "Lower environmental indicator";
+
+        description =
+            "The available model readings indicate comparatively lower values. This does not establish that conditions are safe.";
+
+        color = "#16a57a";
+
+    } else if (score < 50) {
+
+        level = "MODERATE INDICATOR";
+        title = "Conditions need attention";
+
+        description =
+            "Some readings are elevated. Check official marine forecasts and local harbour instructions.";
+
+        color = "#e5a238";
+
+    } else if (score < 75) {
+
+        level = "HIGH INDICATOR";
+        title = "Elevated environmental risk";
+
+        description =
+            "Several readings may indicate challenging conditions. Follow official warnings and seek local authority guidance.";
+
+        color = "#e77b3d";
+
+    } else {
+
+        level = "VERY HIGH INDICATOR";
+        title = "Very elevated environmental risk";
+
+        description =
+            "The prototype readings are strongly elevated. Follow official warnings and emergency directions.";
+
+        color = "#df5555";
+    }
+
+    $("riskScore").textContent = score;
+    $("riskLabel").textContent = level;
+    $("riskTitle").textContent = title;
+    $("riskDescription").textContent = description;
+
+    $("riskRing").style.background =
+        `conic-gradient(${color} ${score * 3.6}deg, #e8eef3 0deg)`;
+
+    $("factorList").innerHTML = factors.map(item => `
+
+        <div class="factor">
+
+            <div class="factor-head">
+                <span>${item.name}</span>
+                <span>${item.detail}</span>
+            </div>
+
+            <div class="bar">
+                <i style="width:${item.value}%;background:${color}"></i>
+            </div>
+
+        </div>
+
+    `).join("");
+}
+
+// WEATHER API
+
+async function loadWeather() {
+
+    $("updatedAt").textContent = "Updating forecast...";
+
+    const { lat, lon } = currentLocation;
+
+    const weatherURL =
+        `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,precipitation,wind_speed_10m,wind_gusts_10m&hourly=temperature_2m,precipitation,wind_speed_10m&forecast_days=2&timezone=auto`;
+
+    const marineURL =
+        `https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lon}&current=wave_height,wave_direction,wave_period&hourly=wave_height&forecast_days=2&timezone=auto`;
+
+    try {
+
+        const [weatherResponse, marineResponse] =
+            await Promise.all([
+                fetch(weatherURL),
+                fetch(marineURL)
+            ]);
+
+        if (!weatherResponse.ok) {
+            throw new Error("Weather service unavailable");
+        }
+
+        const weather = await weatherResponse.json();
+
+        let marine = null;
+
+        if (marineResponse.ok) {
+            try {
+                marine = await marineResponse.json();
+            } catch (error) {
+                marine = null;
+            }
+        }
+
+        const current = weather.current || {};
+        const marineCurrent = marine?.current || {};
+
+        const wind = Number(current.wind_speed_10m) || 0;
+
+        const gust =
+            Number(current.wind_gusts_10m) || wind;
+
+        const rain =
+            Number(current.precipitation) || 0;
+
+        const wave =
+            Number(marineCurrent.wave_height) || 0;
+
+        setMetric(
+            "temperature",
+            format(current.temperature_2m),
+            "°C"
+        );
+
+        setMetric(
+            "wind",
+            format(wind),
+            " km/h"
+        );
+
+        setMetric(
+            "rain",
+            format(rain),
+            " mm"
+        );
+
+        setMetric(
+            "wave",
+            marine ? format(wave) : "N/A",
+            marine ? " m" : ""
+        );
+
+        calculateRisk(wind, gust, rain, wave);
+
+        renderForecast(weather, marine);
+
+        $("updatedAt").textContent =
+            `Updated ${new Date().toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit"
+            })}`;
+
+    } catch (error) {
+
+        $("updatedAt").textContent = "Live data unavailable";
+
+        $("factorList").innerHTML =
+            "<p class='muted'>Could not load forecast data. Check your connection and refresh.</p>";
+
+        $("riskTitle").textContent =
+            "Forecast connection unavailable";
+
+        $("riskDescription").textContent =
+            "No risk score is shown because current data could not be retrieved.";
+
+        $("riskLabel").textContent = "NO DATA";
+
+        $("riskScore").textContent = "--";
+
+        $("riskRing").style.background =
+            "conic-gradient(#a9bac8 0deg,#e8eef3 0deg)";
+
+        setMetric("temperature", "--", "°C");
+        setMetric("wind", "--", " km/h");
+        setMetric("rain", "--", " mm");
+        setMetric("wave", "--", " m");
+
+        $("forecastRows").innerHTML =
+            "<div class='empty-row'>Forecast unavailable. Please refresh later.</div>";
+    }
+}
+
+// HOURLY FORECAST
+
+function renderForecast(weather, marine) {
+
+    const hourly = weather.hourly || {};
+    const marineHourly = marine?.hourly || {};
+
+    const times = hourly.time || [];
+
+    const now = new Date();
+
+    let start = times.findIndex(
+        time => new Date(time) >= now
+    );
+
+    if (start < 0) start = 0;
+
+    const rows = [];
+
+    for (
+        let i = start;
+        i < Math.min(start + 12, times.length);
+        i++
+    ) {
+
+        const time = new Date(times[i])
+            .toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit"
+            });
+
+        const wave = marineHourly.wave_height?.[i];
+
+        rows.push(`
+
+            <div class="forecast-row">
+
+                <b>${time}</b>
+
+                <span>
+                    ${format(hourly.temperature_2m?.[i])} °C
+                </span>
+
+                <span>
+                    ${format(hourly.wind_speed_10m?.[i], 0)} km/h
+                </span>
+
+                <span>
+                    ${format(hourly.precipitation?.[i])} mm
+                </span>
+
+                <span>
+                    ${Number.isFinite(wave)
+                        ? format(wave) + " m"
+                        : "N/A"}
+                </span>
+
+            </div>
+
+        `);
+    }
+
+    $("forecastRows").innerHTML =
+        rows.join("") ||
+        "<div class='empty-row'>No hourly forecast available.</div>";
+}
+
+// CURRENT LOCATION
+
+function useMyLocation() {
+
+    if (!navigator.geolocation) {
+        alert("Geolocation is not supported by this browser.");
+        return;
+    }
+
+    $("locateBtn").textContent = "Locating...";
+
+    navigator.geolocation.getCurrentPosition(
+
+        async position => {
+
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+
+            let name =
+                `Selected location (${lat.toFixed(2)}, ${lon.toFixed(2)})`;
+
+            try {
+
+                const response = await fetch(
+                    `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`
+                );
+
+                if (response.ok) {
+
+                    const data = await response.json();
+
+                    const address = data.address || {};
+
+                    name =
+                        address.town ||
+                        address.village ||
+                        address.city ||
+                        address.county ||
+                        name;
+
+                    name += ", " + (address.state || "India");
+                }
+
+            } catch (error) {
+                console.log("Address lookup unavailable");
+            }
+
+            setLocation(lat, lon, name);
+
+            $("locateBtn").textContent = "◎ Use my location";
+
+            loadWeather();
+        },
+
+        () => {
+
+            alert(
+                "Location permission was not granted. Keeping Rameswaram as the monitoring point."
+            );
+
+            $("locateBtn").textContent = "◎ Use my location";
+
+        },
+
+        {
+            enableHighAccuracy: false,
+            timeout: 10000
+        }
+
+    );
+}
+
+// COMMUNITY REPORTS
+
+function getReports() {
+
+    try {
+        return JSON.parse(
+            localStorage.getItem("seaguardXReports") || "[]"
+        );
+    } catch (error) {
+        return [];
+    }
+}
+
+function saveReports(reports) {
+
+    localStorage.setItem(
+        "seaguardXReports",
+        JSON.stringify(reports)
+    );
+}
+
+function escapeHTML(value) {
+
+    return String(value).replace(/[&<>"']/g, char => ({
+
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+
+    })[char]);
+}
+
+function renderReports() {
+
+    const reports = getReports();
+
+    $("reportCount").textContent =
+        `${reports.length} report${reports.length === 1 ? "" : "s"}`;
+
+    $("reportsList").innerHTML = reports.length
+
+        ? reports.slice().reverse().map(report => `
+
+            <article class="report-item">
+
+                <div class="report-item-top">
+
+                    <b>${escapeHTML(report.area)}</b>
+
+                    <time>
+                        ${new Date(report.time).toLocaleString()}
+                    </time>
+
+                </div>
+
+                <span class="report-chip">
+                    ${escapeHTML(report.type)}
+                </span>
+
+                <p>${escapeHTML(report.details)}</p>
+
+            </article>
+
+        `).join("")
+
+        : `
+            <div class="empty-report">
+                No community reports yet.
+                Be the first to add an observation.
+            </div>
+        `;
+
+    if (reportLayer) {
+
+        reportLayer.clearLayers();
+
+        reports.forEach(report => {
+
+            if (report.lat && report.lon) {
+
+                L.circleMarker(
+                    [report.lat, report.lon],
+                    {
+                        radius: 7,
+                        color: "#d58a25",
+                        fillOpacity: 0.8
+                    }
+                )
+                .addTo(reportLayer)
+                .bindPopup(`
+                    <b>${escapeHTML(report.type)}</b>
+                    <br>
+                    ${escapeHTML(report.area)}
+                `);
+
+            }
+
+        });
+    }
+}
+
+// SUBMIT REPORT
+
+$("reportForm").addEventListener("submit", event => {
+
+    event.preventDefault();
+
+    const reports = getReports();
+
+    reports.push({
+
+        type: $("reportType").value,
+
+        area: $("reportArea").value.trim(),
+
+        details: $("reportDetails").value.trim(),
+
+        time: new Date().toISOString(),
+
+        lat: currentLocation.lat,
+
+        lon: currentLocation.lon
+
+    });
+
+    saveReports(reports);
+
+    event.target.reset();
+
+    renderReports();
+
+});
+
+// BUTTON EVENTS
+
+$("locateBtn").addEventListener(
+    "click",
+    useMyLocation
+);
+
+$("refreshBtn").addEventListener(
+    "click",
+    loadWeather
+);
+
+$("menuBtn").addEventListener("click", () => {
+
+    $("sidebar").classList.toggle("open");
+
+});
+
+document.querySelectorAll(".nav-link").forEach(link => {
+
+    link.addEventListener("click", () => {
+
+        $("sidebar").classList.remove("open");
+
+        document.querySelectorAll(".nav-link")
+            .forEach(item => item.classList.remove("active"));
+
+        link.classList.add("active");
+
+    });
+
+});
+
+// INITIALIZE WEBSITE
+
+initMap();
+
+renderReports();
+
+loadWeather();
