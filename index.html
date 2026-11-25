@@ -1,0 +1,421 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SeaGuard X | Coastal Intelligence</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <link rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+
+<div class="app-shell">
+
+    <aside class="sidebar" id="sidebar">
+
+        <a class="brand" href="#overview">
+            <span class="brand-mark">〰</span>
+            <span>
+                SeaGuard <b>X</b>
+                <small>COASTAL INTELLIGENCE</small>
+            </span>
+        </a>
+
+        <div class="side-label">WORKSPACE</div>
+
+        <nav class="nav">
+            <a class="nav-link active" href="#overview">▦ Overview</a>
+            <a class="nav-link" href="#live-map">⌖ Coastal Map</a>
+            <a class="nav-link" href="#risk">◈ Risk Intelligence</a>
+            <a class="nav-link" href="#forecast">◷ Forecast</a>
+            <a class="nav-link" href="#community">◎ Community Reports</a>
+        </nav>
+
+        <div class="side-bottom">
+            <div class="side-status">
+                <i></i>
+                <div>
+                    <b>Prototype System</b>
+                    <small>Data connection varies</small>
+                </div>
+            </div>
+            <a class="nav-link" href="#about">ⓘ About</a>
+        </div>
+
+    </aside>
+
+    <main class="main">
+
+        <header class="topbar">
+
+            <button class="menu-btn" id="menuBtn">☰</button>
+
+            <div>
+                <div class="eyebrow">COASTAL MONITORING NETWORK</div>
+                <h1>Coastal Overview</h1>
+            </div>
+
+            <div class="top-actions">
+                <span class="live-pill"><i></i> LIVE DATA</span>
+                <button class="icon-btn" id="refreshBtn">↻</button>
+                <div class="avatar">SG</div>
+            </div>
+
+        </header>
+
+        <section class="location-strip">
+
+            <div>
+                <span class="pin">⌖</span>
+                <div>
+                    <small>MONITORING LOCATION</small>
+                    <b id="locationName">Rameswaram, Tamil Nadu</b>
+                </div>
+            </div>
+
+            <div class="coords" id="coords">
+                9.288° N · 79.313° E
+            </div>
+
+            <button class="outline-btn" id="locateBtn">
+                ◎ Use my location
+            </button>
+
+        </section>
+
+        <!-- OVERVIEW -->
+
+        <section id="overview" class="section">
+
+            <div class="section-heading">
+                <div>
+                    <div class="eyebrow">SITUATIONAL AWARENESS</div>
+                    <h2>Environmental Snapshot</h2>
+                </div>
+                <span class="updated" id="updatedAt">Waiting for data...</span>
+            </div>
+
+            <div class="metrics-grid">
+
+                <article class="metric-card">
+                    <div class="metric-top">
+                        <span>Temperature</span>
+                        <span class="metric-icon">☼</span>
+                    </div>
+                    <div class="metric-value" id="temperature">--<small>°C</small></div>
+                    <div class="metric-foot">Air temperature</div>
+                </article>
+
+                <article class="metric-card">
+                    <div class="metric-top">
+                        <span>Wind Speed</span>
+                        <span class="metric-icon">〰</span>
+                    </div>
+                    <div class="metric-value" id="wind">--<small> km/h</small></div>
+                    <div class="metric-foot">10m above ground</div>
+                </article>
+
+                <article class="metric-card">
+                    <div class="metric-top">
+                        <span>Rainfall</span>
+                        <span class="metric-icon">☂</span>
+                    </div>
+                    <div class="metric-value" id="rain">--<small> mm</small></div>
+                    <div class="metric-foot">Hourly precipitation</div>
+                </article>
+
+                <article class="metric-card">
+                    <div class="metric-top">
+                        <span>Wave Height</span>
+                        <span class="metric-icon">≈</span>
+                    </div>
+                    <div class="metric-value" id="wave">--<small> m</small></div>
+                    <div class="metric-foot">Marine forecast</div>
+                </article>
+
+            </div>
+
+            <div class="notice-row">
+                <span>ⓘ</span>
+                <p>
+                    <b>Important:</b> Forecast values are model estimates,
+                    not official marine warnings. Follow IMD, INCOIS,
+                    Coast Guard and local harbour-authority instructions.
+                </p>
+            </div>
+
+        </section>
+
+        <!-- RISK INTELLIGENCE -->
+
+        <section id="risk" class="section">
+
+            <div class="section-heading">
+                <div>
+                    <div class="eyebrow">DECISION SUPPORT</div>
+                    <h2>Coastal Risk Intelligence</h2>
+                </div>
+                <span class="tag">RULE-BASED PROTOTYPE</span>
+            </div>
+
+            <div class="risk-layout">
+
+                <article class="risk-card">
+
+                    <div class="risk-ring" id="riskRing">
+                        <div>
+                            <strong id="riskScore">--</strong>
+                            <small>/100</small>
+                        </div>
+                    </div>
+
+                    <div class="risk-copy">
+
+                        <span class="risk-label" id="riskLabel">
+                            AWAITING DATA
+                        </span>
+
+                        <h3 id="riskTitle">
+                            Risk assessment loading
+                        </h3>
+
+                        <p id="riskDescription">
+                            Waiting for environmental readings.
+                        </p>
+
+                        <div class="risk-foot">
+                            Educational prototype indicator only.
+                            Not a permission to go to sea.
+                        </div>
+
+                    </div>
+
+                </article>
+
+                <article class="factor-card">
+
+                    <h3>Risk Factor Breakdown</h3>
+
+                    <div id="factorList">
+                        <p class="muted">Waiting for forecast readings...</p>
+                    </div>
+
+                </article>
+
+            </div>
+
+        </section>
+
+        <!-- MAP -->
+
+        <section id="live-map" class="section">
+
+            <div class="section-heading">
+                <div>
+                    <div class="eyebrow">GEOSPATIAL VIEW</div>
+                    <h2>Interactive Coastal Map</h2>
+                </div>
+                <span class="tag">OPEN MAP</span>
+            </div>
+
+            <div class="map-card">
+
+                <div class="map-toolbar">
+                    <div>
+                        <b>Monitoring Area</b>
+                        <small>Explore the selected coastal location</small>
+                    </div>
+
+                    <button class="outline-btn" id="mapHomeBtn">
+                        Reset View
+                    </button>
+                </div>
+
+                <div id="map"></div>
+
+                <div class="map-legend">
+                    <span>🔵 Monitoring Point</span>
+                    <span>🟠 Community Report</span>
+                    <span class="map-note">
+                        © OpenStreetMap
+                    </span>
+                </div>
+
+            </div>
+
+        </section>
+
+        <!-- FORECAST -->
+
+        <section id="forecast" class="section">
+
+            <div class="section-heading">
+                <div>
+                    <div class="eyebrow">SHORT-RANGE OUTLOOK</div>
+                    <h2>Next 12 Hours Forecast</h2>
+                </div>
+                <span class="tag">MODEL FORECAST</span>
+            </div>
+
+            <div class="forecast-card">
+
+                <div class="forecast-head">
+                    <span>Local Time</span>
+                    <span>Temp</span>
+                    <span>Wind</span>
+                    <span>Rain</span>
+                    <span>Wave</span>
+                </div>
+
+                <div id="forecastRows">
+                    <div class="empty-row">
+                        Forecast will appear when data is loaded.
+                    </div>
+                </div>
+
+            </div>
+
+        </section>
+
+        <!-- COMMUNITY REPORTS -->
+
+        <section id="community" class="section">
+
+            <div class="section-heading">
+                <div>
+                    <div class="eyebrow">LOCAL KNOWLEDGE NETWORK</div>
+                    <h2>Community Sea Condition Reports</h2>
+                </div>
+                <span class="tag">DEMO FEATURE</span>
+            </div>
+
+            <div class="community-grid">
+
+                <form class="report-form" id="reportForm">
+
+                    <h3>Submit Local Observation</h3>
+
+                    <p>
+                        Share a local observation for demonstration.
+                        Do not use this form for emergencies.
+                    </p>
+
+                    <label for="reportType">Observation Type</label>
+
+                    <select id="reportType" required>
+                        <option value="">Choose Category</option>
+                        <option>Rough Sea</option>
+                        <option>Strong Wind</option>
+                        <option>Heavy Rainfall</option>
+                        <option>Unusual Tide</option>
+                        <option>Other Observation</option>
+                    </select>
+
+                    <label for="reportArea">Area / Harbour</label>
+
+                    <input
+                        id="reportArea"
+                        placeholder="Example: Pamban Coast"
+                        required
+                        maxlength="70"
+                    >
+
+                    <label for="reportDetails">Details</label>
+
+                    <textarea
+                        id="reportDetails"
+                        rows="3"
+                        placeholder="Describe your observation..."
+                        required
+                        maxlength="300"
+                    ></textarea>
+
+                    <button class="primary-btn" type="submit">
+                        Submit Observation →
+                    </button>
+
+                    <small class="form-note">
+                        Reports are stored in this browser only.
+                    </small>
+
+                </form>
+
+                <div class="reports-panel">
+
+                    <div class="reports-head">
+                        <h3>Recent Reports</h3>
+                        <span id="reportCount">0 reports</span>
+                    </div>
+
+                    <div id="reportsList" class="reports-list">
+                        <div class="empty-report">
+                            No reports available yet.
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+        <!-- ABOUT -->
+
+        <section id="about" class="about-panel">
+
+            <div>
+                <div class="eyebrow">BUILT FOR COASTAL RESILIENCE</div>
+
+                <h2>
+                    Better Information.<br>
+                    Safer Coastal Decisions.
+                </h2>
+
+                <p>
+                    SeaGuard X is an advanced coastal intelligence
+                    prototype combining weather forecasts, marine
+                    information, interactive maps and community
+                    observations into one platform.
+                </p>
+            </div>
+
+            <div class="about-links">
+
+                <b>Official Information Sources</b>
+
+                <a href="https://mausam.imd.gov.in/" target="_blank">
+                    India Meteorological Department ↗
+                </a>
+
+                <a href="https://www.incois.gov.in/" target="_blank">
+                    INCOIS Ocean Information ↗
+                </a>
+
+                <a href="https://www.indiancoastguard.gov.in/" target="_blank">
+                    Indian Coast Guard ↗
+                </a>
+
+            </div>
+
+        </section>
+
+        <footer>
+            © 2026 SeaGuard X | Hackathon Prototype
+        </footer>
+
+    </main>
+
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="app.js"></script>
+
+</body>
+</html>
